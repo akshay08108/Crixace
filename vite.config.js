@@ -7,27 +7,15 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
-        '/api/sportmonks': {
-          target: 'https://cricket.sportmonks.com',
+        '/api/cricket': {
+          target: env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1',
           changeOrigin: true,
           secure: true,
-          rewrite: path => path.replace(/^\/api\/sportmonks/, ''),
+          rewrite: path => path.replace(/^\/api\/cricket/, '/currentMatches'),
           configure: proxy => proxy.on('proxyReq', proxyRequest => {
-            if (!env.SPORTSMONK_TOKEN) return;
-            const targetUrl = new URL(proxyRequest.path, 'https://cricket.sportmonks.com');
-            targetUrl.searchParams.set('api_token', env.SPORTSMONK_TOKEN);
-            proxyRequest.path = `${targetUrl.pathname}${targetUrl.search}`;
-          })
-        },
-        '/api/entitysport': {
-          target: 'https://restapi.entitysport.com',
-          changeOrigin: true,
-          secure: true,
-          rewrite: path => path.replace(/^\/api\/entitysport/, ''),
-          configure: proxy => proxy.on('proxyReq', proxyRequest => {
-            if (!env.ENTITYSPORT_TOKEN) return;
-            const targetUrl = new URL(proxyRequest.path, 'https://restapi.entitysport.com');
-            targetUrl.searchParams.set('token', env.ENTITYSPORT_TOKEN);
+            if (!env.CRICKETDATA_API_KEY) return;
+            const targetUrl = new URL(proxyRequest.path, env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1');
+            targetUrl.searchParams.set('apikey', env.CRICKETDATA_API_KEY);
             proxyRequest.path = `${targetUrl.pathname}${targetUrl.search}`;
           })
         },

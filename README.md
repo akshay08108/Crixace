@@ -9,7 +9,8 @@ CrixAce is a responsive cricket and football live-score interface built with Rea
 - Persisted local session and theme with `localStorage`
 - Live, upcoming, and completed match filters
 - Interactive scorecard drawer and match alerts
-- Responsive desktop and mobile layouts
+- Five-minute live-score refresh while a match is active and the tab is visible
+- Responsive desktop and mobile layouts with phone-safe navigation, cards and scorecard drawer
 - Graceful fallback to demo scores when an API is not configured
 
 ## Local development
@@ -62,12 +63,13 @@ Every push to `main` will update production, while other branches and pull reque
 
 Do not use `VITE_`-prefixed variables for private API tokens because those values are bundled into browser JavaScript. When live scoring is connected for production, put provider keys in Vercel **Project Settings → Environment Variables** and access them only from server-side functions.
 
-The names currently reserved for local provider experiments are documented in `.env.example`. The deployed prototype works without them and falls back to mock data.
+For Cricket Data, configure `CRICKETDATA_API_KEY` and `CRICKETDATA_BASE_URL` using the names documented in `.env.example`. The key is read only by the Vercel function in `api/cricket.js`. The deployed prototype works without it and falls back to mock data.
 
 ## Project structure
 
 ```text
 .github/workflows/ci.yml  GitHub production-build check
+api/cricket.js            Server-side Cricket Data proxy for Vercel
 src/main.jsx              Application UI and prototype data
 src/services/             Live-score provider adapters
 src/styles.css            Responsive visual design
