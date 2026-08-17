@@ -1,0 +1,183 @@
+.scorecard-status > div span {
+  display: grid;
+  gap: 4px;
+}
+
+.scorecard-status > div b {
+  color: var(--green);
+  font-size: 11px;
+}
+
+.scorecard-status > small {
+  display: block;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+@media (max-width: 700px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .header-inner {
+    gap: 9px;
+    padding-inline: max(12px, env(safe-area-inset-left));
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .header-actions .theme-toggle,
+  .header-actions > .icon-button {
+    display: none;
+  }
+
+  .sports-switch {
+    white-space: nowrap;
+  }
+
+  .dashboard {
+    padding: 24px 14px 42px;
+  }
+
+  .hero-row {
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .hero-row h1 {
+    font-size: clamp(24px, 7vw, 29px);
+  }
+
+  .hero-row p {
+    max-width: 270px;
+  }
+
+  .filters {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filters button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .feature-top {
+    padding: 16px 16px 0;
+  }
+
+  .competition {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .feature-teams {
+    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+    padding: 24px 10px;
+  }
+
+  .feature-team {
+    min-width: 0;
+  }
+
+  .feature-team span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .feature-team strong {
+    font-size: clamp(24px, 8vw, 29px);
+  }
+
+  .match-status {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    margin-inline: 16px;
+  }
+
+  .ball-strip {
+    padding-inline: 16px;
+  }
+
+  .match-card {
+    padding: 13px 14px;
+  }
+
+  .team-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .team-ident {
+    min-width: 0;
+  }
+
+  .team-ident span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .team-row em {
+    grid-column: 2;
+  }
+
+  .detail-panel {
+    min-height: 100dvh;
+    overflow-y: auto;
+    padding: 28px 18px max(28px, env(safe-area-inset-bottom));
+    width: 100vw;
+  }
+
+  .detail-panel h3 {
+    font-size: 22px;
+    padding-right: 28px;
+  }
+
+  .detail-score {
+    margin-block: 26px 16px;
+  }
+
+  .tabs {
+    gap: 18px;
+    overflow-x: auto;
+  }
+
+  .login-panel {
+    padding: 28px 20px max(28px, env(safe-area-inset-bottom));
+  }
+
+  .login-form-wrap h2 {
+    font-size: 28px;
+  }
+
+  footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand > span:last-child {
+    display: none;
+  }
+
+  .hero-row p {
+    max-width: 230px;
+  }
+
+  .filters {
+    margin-inline: -4px;
+  }
+}
