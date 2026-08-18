@@ -4,8 +4,8 @@ async function getJson(endpoint, label) {
   const response = await fetch(endpoint);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload?.error || `${label} request failed: ${response.status}`);
-  if (payload?.status && payload.status !== 'success') throw new Error(payload?.message || `${label} is unavailable`);
-  return payload?.response ?? payload?.data ?? payload;
+  if (payload?.error) throw new Error(payload.error?.message || payload.message || `${label} is unavailable`);
+  return payload?.data ?? payload;
 }
 
 function firstDefined(...values) {
@@ -13,126 +13,105 @@ function firstDefined(...values) {
 }
 
 function shortCode(team) {
-  const name = firstDefined(team?.teamSName, team?.shortName, team?.code, team?.teamName, team?.name, team?.title, 'TBD');
+  const name = firstDefined(team?.code, team?.name, 'TBD');
   return String(name).replace(/[^a-z0-9]/gi, '').slice(0, 3).toUpperCase() || 'TBD';
 }
 
-function latestInnings(score) {
-  if (!score || typeof score !== 'object') return null;
-  const candidates = Object.values(score).filter(value => value && typeof value === 'object');
-  return candidates[candidates.length - 1] || score;
-}
-
-function normalizeScore(score) {
-  const innings = latestInnings(score);
-  const runs = firstDefined(innings?.runs, innings?.r, score?.runs, score?.r);
-  const wickets = firstDefined(innings?.wickets, innings?.w, score?.wickets, score?.w);
-  const overs = firstDefined(innings?.overs, innings?.o, score?.overs, score?.o);
-  return {
-    score: runs === undefined ? '—' : `${runs}${wickets === undefined ? '' : `/${wickets}`}`,
-    overs: overs === undefined ? '' : String(overs)
-  };
+function latestTeamRun(runs, teamId) {
+  const teamRuns = (Array.isArray(runs) ? runs : [])
+    .filter(run => String(run?.team_id) === String(teamId))
+    .sort((a, b) => Number(a?.inning || 0) - Number(b?.inning || 0));
+  return teamRuns[teamRuns.length - 1] || null;
 }
 
 function teamImage(team) {
-  const suppliedImage = firstDefined(team?.image, team?.logo, team?.imageUrl);
-  if (suppliedImage) return suppliedImage;
-  const imageId = firstDefined(team?.imageId, team?.teamImageId);
-  return imageId ? `https://static.cricbuzz.com/a/img/v1/72x54/i1/c${imageId}/team.jpg` : '';
+  const image = String(firstDefined(team?.image_path, team?.image, ''));
+  if (!image) return '';
+  try {
+    const url = new URL(image);
+    return url.pathname && url.pathname !== '/' ? image : '';
+  } catch {
+    return image;
+  }
 }
 
-function normalizeTeam(team, score) {
-  const normalizedScore = normalizeScore(score);
+function normalizeTeam(team, run) {
+  const score = run?.score === undefined || run?.score === null
+    ? '—'
+    : `${run.score}${run?.wickets === undefined || run?.wickets === null ? '' : `/${run.wickets}`}`;
   return {
-    id: String(firstDefined(team?.teamId, team?.id, `team-${shortCode(team)}`)),
+    id: String(firstDefined(team?.id, `team-${shortCode(team)}`)),
     code: shortCode(team),
-    name: String(firstDefined(team?.teamName, team?.name, team?.title, 'Team')),
+    name: String(firstDefined(team?.name, 'Team')),
     image: teamImage(team),
-    ...normalizedScore
+    score,
+    overs: run?.overs === undefined || run?.overs === null ? '' : String(run.overs)
   };
 }
 
-function inferState(info, fallback = 'upcoming') {
-  const value = String(firstDefined(info?.state, info?.status, info?.matchStatus, '')).toLowerCase();
-  if (info?.matchEnded || /complete|result|won|draw|abandon/.test(value)) return 'completed';
-  if (info?.matchStarted || /live|progress|innings|stumps|break/.test(value)) return 'live';
-  if (/upcoming|scheduled|preview/.test(value)) return 'upcoming';
+function inferState(item, fallback = 'upcoming') {
+  const status = String(item?.status || '').toLowerCase();
+  if (/finished|complete|abandon|cancel|walkover|draw/.test(status)) return 'completed';
+  if (/not started|scheduled|ns/.test(status)) return 'upcoming';
+  if (/innings|lunch|tea|stumps|break|delayed|live/.test(status)) return 'live';
   return fallback;
 }
 
-function normalizeMatch(item, index, fallbackState = 'live') {
-  const info = item?.matchInfo || item?.match || item || {};
-  const score = item?.matchScore || item?.score || info?.matchScore || {};
-  const team1 = info?.team1 || info?.teams?.[0] || item?.team1 || {};
-  const team2 = info?.team2 || info?.teams?.[1] || item?.team2 || {};
-  const team1Score = score?.team1Score || score?.team1 || item?.team1Score || team1?.score;
-  const team2Score = score?.team2Score || score?.team2 || item?.team2Score || team2?.score;
-  const venue = info?.venueInfo || info?.venue || {};
-  const state = inferState(info, fallbackState);
-  const dateValue = firstDefined(info?.startDate, info?.date, item?.date);
-  const scheduled = dateValue && !Number.isNaN(Number(dateValue))
-    ? new Date(Number(dateValue)).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-    : dateValue;
+function displayDate(value) {
+  if (!value) return '';
+  const parsed = new Date(String(value).replace(' ', 'T') + (String(value).includes('Z') ? '' : 'Z'));
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+export function normalizeSportmonksMatch(item, index = 0, fallbackState = 'upcoming') {
+  const localTeam = item?.localteam || {};
+  const visitorTeam = item?.visitorteam || {};
+  const runs = Array.isArray(item?.runs) ? item.runs : [];
+  const state = inferState(item, fallbackState);
+  const venue = item?.venue || {};
+  const scheduled = displayDate(item?.starting_at);
+  const status = String(item?.status || '');
+  const note = state === 'upcoming' && /^(ns|not started|scheduled)$/i.test(status)
+    ? scheduled
+    : firstDefined(item?.note, status, scheduled);
 
   return {
-    id: String(firstDefined(info?.matchId, info?.id, item?.matchId, item?.id, `rapid-${index}`)),
+    id: String(firstDefined(item?.id, `sportmonks-${index}`)),
     state,
-    competition: [firstDefined(info?.seriesName, item?.seriesName), firstDefined(info?.matchDesc, info?.matchFormat), firstDefined(venue?.city, venue?.ground)].filter(Boolean).join(' · ') || 'Cricket match',
-    teams: [normalizeTeam(team1, team1Score), normalizeTeam(team2, team2Score)],
-    note: String(firstDefined(info?.status, info?.stateTitle, item?.status, scheduled, state === 'live' ? 'Live now' : state === 'completed' ? 'Match completed' : 'Upcoming match')),
+    competition: [item?.league?.name, item?.round || item?.type, venue?.city || venue?.name].filter(Boolean).join(' · ') || 'Cricket match',
+    teams: [
+      normalizeTeam(localTeam, latestTeamRun(runs, localTeam?.id)),
+      normalizeTeam(visitorTeam, latestTeamRun(runs, visitorTeam?.id))
+    ],
+    note: String(firstDefined(note, state === 'live' ? 'Live now' : state === 'completed' ? 'Match completed' : 'Upcoming match')),
     colors: TEAM_COLORS
   };
 }
 
-function flattenMatches(value, fallbackState) {
-  if (Array.isArray(value)) {
-    return value.flatMap(item => {
-      if (item?.matchInfo || item?.matchId || item?.match) return [item];
-      return flattenMatches(item, fallbackState);
-    });
-  }
-  if (!value || typeof value !== 'object') return [];
-  for (const key of ['matches', 'matchList', 'matchInfo', 'typeMatches', 'seriesMatches']) {
-    if (Array.isArray(value[key])) return flattenMatches(value[key], fallbackState);
-  }
-  return [];
-}
-
-function flattenSchedule(response) {
-  const schedules = Array.isArray(response?.schedules) ? response.schedules : Array.isArray(response) ? response : [];
-  const matches = [];
-  schedules.forEach(scheduleEntry => {
-    const wrapper = scheduleEntry?.scheduleAdWrapper || scheduleEntry?.scheduleWrapper || scheduleEntry;
-    const groups = Array.isArray(wrapper?.matchScheduleList) ? wrapper.matchScheduleList : [];
-    groups.forEach(group => {
-      const matchInfo = Array.isArray(group?.matchInfo) ? group.matchInfo : [];
-      matchInfo.forEach(info => matches.push({
-        matchInfo: { ...info, seriesName: info.seriesName || group.seriesName, date: info.startDate || wrapper.longDate || wrapper.date }
-      }));
-    });
-  });
-  return matches;
-}
-
 export async function fetchCricketMatches() {
   const response = await getJson('/api/cricket', 'Live scores');
-  return flattenMatches(response, 'live').map((item, index) => normalizeMatch(item, index, 'live'));
+  return (Array.isArray(response) ? response : []).map((item, index) => normalizeSportmonksMatch(item, index, 'live'));
 }
 
 export async function fetchFixtures() {
   const response = await getJson('/api/fixtures', 'Fixtures');
-  return flattenSchedule(response).map((item, index) => normalizeMatch(item, index, 'upcoming'));
+  return (Array.isArray(response) ? response : []).map((item, index) => normalizeSportmonksMatch(item, index, 'upcoming'));
 }
 
 export async function fetchSeries() {
   const response = await getJson('/api/series', 'Series');
   if (!Array.isArray(response)) return [];
-  return response.map((item, index) => ({
-    id: String(firstDefined(item?.id, item?.seriesId, item?.url, `series-${index}`)),
-    name: String(firstDefined(item?.series, item?.seriesName, item?.name, item?.title, 'Cricket series')),
-    dates: String(firstDefined(item?.dates, item?.date, item?.month, 'Schedule to be announced')),
-    month: String(firstDefined(item?.month) || '')
-  }));
+  return response.map((league, index) => {
+    const seasons = Array.isArray(league?.seasons) ? league.seasons : [];
+    const currentSeason = seasons.find(season => String(season?.id) === String(league?.season_id)) || seasons[seasons.length - 1];
+    return {
+      id: String(firstDefined(league?.id, `series-${index}`)),
+      name: [firstDefined(league?.name, 'Cricket series'), currentSeason?.name].filter(Boolean).join(' · '),
+      dates: String(firstDefined(currentSeason?.name, league?.code, 'Schedule to be announced')),
+      month: ''
+    };
+  });
 }
 
 function numberValue(item, ...keys) {
@@ -143,45 +122,46 @@ function numberValue(item, ...keys) {
   return 0;
 }
 
-function playerName(item, fallback) {
-  return String(firstDefined(item?.name, item?.batsmanName, item?.batterName, item?.bowlerName, item?.batsman?.name, item?.bowler?.name, fallback));
+function playerName(item, relation, fallback) {
+  const player = item?.[relation] || {};
+  return String(firstDefined(player?.fullname, player?.name, item?.name, fallback));
 }
 
-function inningsHasData(innings) {
-  return Array.isArray(innings?.batters) && innings.batters.length || Array.isArray(innings?.bowlers) && innings.bowlers.length;
+function latestScoreboard(entries) {
+  const scoreboards = entries.map(entry => Number(entry?.scoreboard)).filter(Number.isFinite);
+  return scoreboards.length ? Math.max(...scoreboards) : null;
 }
 
 export async function fetchMatchScorecard(matchId) {
-  const response = await getJson(`/api/scorecard?id=${encodeURIComponent(matchId)}`, 'Scorecard');
-  const inningsList = Array.isArray(response) ? response : Object.values(response || {}).filter(value => value && typeof value === 'object');
-  const currentInnings = [...inningsList].reverse().find(inningsHasData);
-  if (!currentInnings) throw new Error('No scorecard is available');
+  const match = await getJson(`/api/scorecard?id=${encodeURIComponent(matchId)}`, 'Scorecard');
+  const batting = Array.isArray(match?.batting) ? match.batting : [];
+  const bowling = Array.isArray(match?.bowling) ? match.bowling : [];
+  if (!batting.length && !bowling.length) throw new Error('No scorecard is available');
 
-  const batting = Array.isArray(currentInnings.batters) ? currentInnings.batters : [];
-  const bowling = Array.isArray(currentInnings.bowlers) ? currentInnings.bowlers : [];
-  const activeBatters = batting.filter(player => {
-    const dismissal = String(firstDefined(player?.dismissal, player?.dismissalText, player?.outDesc, player?.status, '')).toLowerCase();
-    return !dismissal || /not out|batting/.test(dismissal);
-  }).slice(-2);
-  const currentBowler = bowling[bowling.length - 1] || null;
-  const bowlerOvers = currentBowler ? numberValue(currentBowler, 'overs', 'o') : 0;
-  const [, ballsInCurrentOver = '0'] = String(bowlerOvers).split('.');
+  const inning = latestScoreboard([...batting, ...bowling]);
+  const inningBatters = inning === null ? batting : batting.filter(player => Number(player?.scoreboard) === inning);
+  const inningBowlers = inning === null ? bowling : bowling.filter(player => Number(player?.scoreboard) === inning);
+  const activeBatters = inningBatters.filter(player => player?.active === true);
+  const displayedBatters = (activeBatters.length ? activeBatters : inningBatters.slice(-2)).slice(-2);
+  const currentBowler = inningBowlers.find(player => player?.active === true) || inningBowlers[inningBowlers.length - 1] || null;
+  const bowlerOvers = currentBowler ? numberValue(currentBowler, 'overs') : 0;
+  const [completedOvers = '0', ballsInCurrentOver = '0'] = String(bowlerOvers).split('.');
 
   return {
-    inning: String(firstDefined(currentInnings?.name, currentInnings?.title, currentInnings?.label, 'Current innings')),
-    batters: activeBatters.map(player => ({
-      name: playerName(player, 'Batter'),
-      runs: numberValue(player, 'runs', 'r'),
-      balls: numberValue(player, 'balls', 'b')
+    inning: inning === null ? 'Current innings' : `Innings ${inning}`,
+    batters: displayedBatters.map(player => ({
+      name: playerName(player, 'batsman', 'Batter'),
+      runs: numberValue(player, 'score', 'runs'),
+      balls: numberValue(player, 'ball', 'balls')
     })),
     bowler: currentBowler ? {
-      name: playerName(currentBowler, 'Bowler'),
+      name: playerName(currentBowler, 'bowler', 'Bowler'),
       overs: bowlerOvers,
-      balls: (Math.floor(Number(bowlerOvers)) * 6) + Number(ballsInCurrentOver),
-      currentOver: Math.floor(Number(bowlerOvers)) + 1,
+      balls: (Number(completedOvers) * 6) + Number(ballsInCurrentOver),
+      currentOver: Number(completedOvers) + 1,
       ballsInCurrentOver: Number(ballsInCurrentOver),
-      wickets: numberValue(currentBowler, 'wickets', 'w'),
-      runs: numberValue(currentBowler, 'runs', 'r')
+      wickets: numberValue(currentBowler, 'wickets'),
+      runs: numberValue(currentBowler, 'runs')
     } : null
   };
 }

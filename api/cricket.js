@@ -1,10 +1,12 @@
-import { allowGet, fetchRapidCricket, sendApiError } from './_rapidapi.js';
+import { allowGet, fetchSportmonks, sendApiError } from './_sportmonks.js';
 
 export default async function handler(request, response) {
   if (!allowGet(request, response)) return;
 
   try {
-    const payload = await fetchRapidCricket('/cricket-livescores');
+    const payload = await fetchSportmonks('/livescores', {
+      include: 'localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,league'
+    });
     response.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return response.status(200).json(payload);
   } catch (error) {

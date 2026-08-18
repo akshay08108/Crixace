@@ -1,16 +1,17 @@
-const DEFAULT_HOST = 'cricket-api-free-data.p.rapidapi.com';
+const DEFAULT_BASE_URL = 'https://cricket.sportmonks.com/api/v2.0';
 
-export async function fetchRapidCricket(path, searchParams = {}) {
-  const apiKey = process.env.RAPIDAPI_KEY;
-  const host = process.env.RAPIDAPI_HOST || DEFAULT_HOST;
+export async function fetchSportmonks(path, searchParams = {}) {
+  const apiToken = process.env.SPORTMONKS_API_TOKEN;
+  const baseUrl = process.env.SPORTMONKS_BASE_URL || DEFAULT_BASE_URL;
 
-  if (!apiKey) {
-    const error = new Error('RapidAPI cricket data is not configured');
+  if (!apiToken) {
+    const error = new Error('Sportmonks cricket data is not configured');
     error.statusCode = 503;
     throw error;
   }
 
-  const upstreamUrl = new URL(`https://${host}${path}`);
+  const upstreamUrl = new URL(`${baseUrl.replace(/\/$/, '')}${path}`);
+  upstreamUrl.searchParams.set('api_token', apiToken);
   Object.entries(searchParams).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       upstreamUrl.searchParams.set(key, String(value));
@@ -19,15 +20,9 @@ export async function fetchRapidCricket(path, searchParams = {}) {
 
   let upstreamResponse;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
-      headers: {
-        Accept: 'application/json',
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': host
-      }
-    });
+    upstreamResponse = await fetch(upstreamUrl, { headers: { Accept: 'application/json' } });
   } catch {
-    const error = new Error('Unable to reach the cricket data provider');
+    const error = new Error('Unable to reach Sportmonks Cricket');
     error.statusCode = 502;
     throw error;
   }
@@ -37,11 +32,12 @@ export async function fetchRapidCricket(path, searchParams = {}) {
   try {
     payload = body ? JSON.parse(body) : {};
   } catch {
-    payload = { error: 'The cricket data provider returned an invalid response' };
+    payload = { message: 'Sportmonks returned an invalid response' };
   }
 
-  if (!upstreamResponse.ok || payload?.status === 'error' || payload?.message === 'You are not subscribed to this API.') {
-    const error = new Error(payload?.message || payload?.error || 'The cricket data provider rejected the request');
+  if (!upstreamResponse.ok || payload?.error) {
+    const providerMessage = payload?.message || payload?.error?.message;
+    const error = new Error(providerMessage || 'Sportmonks rejected the request');
     error.statusCode = upstreamResponse.status === 429 ? 429 : upstreamResponse.status || 502;
     throw error;
   }

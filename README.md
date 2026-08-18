@@ -1,6 +1,6 @@
 # CrixAce
 
-CrixAce is a responsive cricket and football live-score interface built with React and Vite. Cricket scores, fixtures and series are connected through server-side RapidAPI proxies so the private token never reaches the browser.
+CrixAce is a responsive cricket and football live-score interface built with React and Vite. Cricket scores, fixtures and series are connected through server-side Sportmonks Cricket proxies so the private token never reaches the browser.
 
 ## Current features
 
@@ -27,7 +27,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Add your RapidAPI token to `.env.local` to use the cricket feeds locally. The key is never bundled into browser JavaScript.
+Add your Sportmonks Cricket token to `.env.local` to use the cricket feeds locally. The token is never bundled into browser JavaScript.
 
 ## Production build
 
@@ -67,15 +67,15 @@ Every push to `main` will update production, while other branches and pull reque
 
 Do not use `VITE_`-prefixed variables for private API tokens because those values are bundled into browser JavaScript. When live scoring is connected for production, put provider keys in Vercel **Project Settings → Environment Variables** and access them only from server-side functions.
 
-For Cricket API Free Data on RapidAPI, configure `RAPIDAPI_KEY` and `RAPIDAPI_HOST` using the names documented in `.env.example`. The key is read only by the Vercel functions under `api/`.
+Configure `SPORTMONKS_API_TOKEN` and `SPORTMONKS_BASE_URL` using the names documented in `.env.example`. The token is read only by the Vercel functions under `api/`.
 
-The free RapidAPI plan currently has a small monthly request allowance. CrixAce therefore loads fixtures and series only when those tabs are opened, caches slow-changing responses at the edge, and refreshes scores only while a live match exists and the page is visible.
+Sportmonks only returns competitions covered by the active subscription. CrixAce therefore labels empty feeds honestly, loads fixtures and series only when needed, caches slow-changing responses at the edge, and refreshes scores only while a live match exists and the page is visible.
 
 ## Project structure
 
 ```text
 .github/workflows/ci.yml  GitHub production-build check
-api/cricket.js            Server-side RapidAPI live-score proxy for Vercel
+api/cricket.js            Server-side Sportmonks live-score proxy for Vercel
 api/fixtures.js            Server-side fixtures proxy
 api/series.js              Server-side series proxy
 api/teams.js               Server-side teams proxy
