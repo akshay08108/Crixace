@@ -1,6 +1,6 @@
 # CrixAce
 
-CrixAce is a responsive cricket and football live-score interface built with React and Vite. The current version is a deployable web prototype; it uses illustrative score data when a live-data provider is unavailable.
+CrixAce is a responsive cricket and football live-score interface built with React and Vite. Cricket scores, fixtures and series are connected through server-side RapidAPI proxies so the private token never reaches the browser.
 
 ## Current features
 
@@ -11,10 +11,11 @@ CrixAce is a responsive cricket and football live-score interface built with Rea
 - Interactive scorecard drawer and match alerts
 - Five-minute live-score refresh while a match is active and the tab is visible
 - Smooth, accessible transitions between match filters and scorecard tabs
-- Functional Fixtures, Series and News sections with graceful coming-soon states
+- Functional Fixtures and Series feeds, plus a graceful coming-soon News section
 - Live batter runs/balls and current-bowler over details when the scorecard feed supplies them
 - Responsive desktop and mobile layouts with phone-safe navigation, cards and scorecard drawer
-- Graceful fallback to demo scores when an API is not configured
+- Honest empty and unavailable states when the live feed has no data
+- Lazy-loaded fixtures and series to preserve the provider's free request allowance
 
 ## Local development
 
@@ -26,7 +27,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open the local URL printed by Vite. API tokens are optional for the prototype.
+Add your RapidAPI token to `.env.local` to use the cricket feeds locally. The key is never bundled into browser JavaScript.
 
 ## Production build
 
@@ -66,14 +67,21 @@ Every push to `main` will update production, while other branches and pull reque
 
 Do not use `VITE_`-prefixed variables for private API tokens because those values are bundled into browser JavaScript. When live scoring is connected for production, put provider keys in Vercel **Project Settings → Environment Variables** and access them only from server-side functions.
 
-For Cricket Data, configure `CRICKETDATA_API_KEY` and `CRICKETDATA_BASE_URL` using the names documented in `.env.example`. The key is read only by the Vercel function in `api/cricket.js`. The deployed prototype works without it and falls back to mock data.
+For Cricket API Free Data on RapidAPI, configure `RAPIDAPI_KEY` and `RAPIDAPI_HOST` using the names documented in `.env.example`. The key is read only by the Vercel functions under `api/`.
+
+The free RapidAPI plan currently has a small monthly request allowance. CrixAce therefore loads fixtures and series only when those tabs are opened, caches slow-changing responses at the edge, and refreshes scores only while a live match exists and the page is visible.
 
 ## Project structure
 
 ```text
 .github/workflows/ci.yml  GitHub production-build check
-api/cricket.js            Server-side Cricket Data proxy for Vercel
-api/scorecard.js           Server-side detailed scorecard proxy for Vercel
+api/cricket.js            Server-side RapidAPI live-score proxy for Vercel
+api/fixtures.js            Server-side fixtures proxy
+api/series.js              Server-side series proxy
+api/teams.js               Server-side teams proxy
+api/players.js             Server-side player-list proxy
+api/team-logo.js           Server-side team-logo proxy
+api/scorecard.js           Server-side detailed scorecard proxy
 src/main.jsx              Application UI and prototype data
 src/services/             Live-score provider adapters
 src/styles.css            Responsive visual design
@@ -82,4 +90,4 @@ vercel.json               Vercel build configuration
 
 ## Important
 
-The displayed scores are illustrative unless a provider is connected. Before presenting CrixAce as a real-time scoring product, add a licensed data provider, server-side caching, rate-limit handling, and a backend API that keeps provider credentials private.
+The UI labels unavailable data instead of presenting sample scores as live. Before growing CrixAce into a high-traffic real-time product, move beyond the provider's free quota and consider a backend cache or database so every visitor does not consume a separate upstream request.

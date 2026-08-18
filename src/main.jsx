@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Bell, ChevronRight, CircleUserRound, Menu, Moon, Sun, X, Zap } from 'lucide-react';
-import { fetchCricketMatches, fetchMatchScorecard } from './services/cricketApi';
+import { fetchCricketMatches, fetchFixtures, fetchMatchScorecard, fetchSeries } from './services/cricketApi';
 import { fetchFootballMatches } from './services/footballApi';
 import './styles.css';
 import './live-score.css';
@@ -13,16 +13,16 @@ const matches = [
   { id: 4, state: 'completed', competition: 'County Championship', teams: [{ code: 'SUR', name: 'Surrey', score: '298 & 174/6', overs: '' }, { code: 'ESS', name: 'Essex', score: '301', overs: '' }], note: 'Stumps · Day 3', colors: ['#dd1739', '#244294'] }
 ];
 
-const series = ['India tour of Australia', 'The Hundred 2026', 'Asia Cup 2026', 'Caribbean Premier League'];
+const fallbackSeries = ['India tour of Australia', 'The Hundred 2026', 'Asia Cup 2026', 'Caribbean Premier League'];
 const LIVE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const SCORECARD_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
-function TeamBadge({ code, color }) { return <span className="team-badge" style={{ background: color }}>{code.slice(0, 1)}</span>; }
+function TeamBadge({ code, color, image }) { return <span className="team-badge" style={{ background: color }}>{image ? <img src={image} alt="" /> : code.slice(0, 1)}</span>; }
 
 function MatchCard({ match, onOpen }) {
   return <button className="match-card" onClick={() => onOpen(match)}>
     <div className="card-meta"><span className={match.state === 'live' ? 'live-label' : 'normal-label'}>{match.state === 'live' ? <><i /> LIVE</> : match.state.toUpperCase()}</span><span>{match.competition}</span></div>
-    {match.teams.map((team, index) => <div className="team-row" key={team.code}><span className="team-ident"><TeamBadge code={team.code} color={match.colors[index]} /><b>{team.code}</b><span>{team.name}</span></span><strong>{team.score}</strong>{team.overs && <em>{team.overs} ov</em>}</div>)}
+    {match.teams.map((team, index) => <div className="team-row" key={`${team.code}-${index}`}><span className="team-ident"><TeamBadge code={team.code} color={match.colors[index]} image={team.image} /><b>{team.code}</b><span>{team.name}</span></span><strong>{team.score}</strong>{team.overs && <em>{team.overs} ov</em>}</div>)}
     <div className="match-note">{match.note}<ChevronRight size={16} /></div>
   </button>;
 }
@@ -31,7 +31,7 @@ function FeatureMatch({ match, details, onOpen, onSave }) {
   if (!match) return null;
   return <article className="feature-match">
     <div className="feature-top"><div><span className={match.state === 'live' ? 'live-label' : 'normal-label'}>{match.state === 'live' && <i />} {match.state.toUpperCase()}</span><span className="competition">{match.competition}</span></div><button className="icon-button" onClick={onSave}><Zap size={18} /></button></div>
-    <div className="feature-teams">{match.teams.map((team, index) => <React.Fragment key={team.code}>{index === 1 && <div className="versus">vs</div>}<div className="feature-team"><TeamBadge code={team.code} color={match.colors[index]} /><span>{team.name.toUpperCase()}</span><strong>{team.score}</strong><small>{team.overs ? `${team.overs} overs` : 'Awaiting score'}</small></div></React.Fragment>)}</div>
+    <div className="feature-teams">{match.teams.map((team, index) => <React.Fragment key={`${team.code}-${index}`}>{index === 1 && <div className="versus">vs</div>}<div className="feature-team"><TeamBadge code={team.code} color={match.colors[index]} image={team.image} /><span>{team.name.toUpperCase()}</span><strong>{team.score}</strong><small>{team.overs ? `${team.overs} overs` : 'Awaiting score'}</small></div></React.Fragment>)}</div>
     {match.state === 'live' && <div className="live-players">
       <div><span>BATTERS</span>{details?.batters?.length ? details.batters.map(batter => <p key={batter.name}><b>{batter.name}</b><strong>{batter.runs} <small>({batter.balls})</small></strong></p>) : <p className="player-unavailable">Batter details unavailable</p>}</div>
       <div><span>CURRENT BOWLER</span>{details?.bowler ? <><p><b>{details.bowler.name}</b><strong>{details.bowler.overs} ov</strong></p><small>Over {details.bowler.currentOver} · {details.bowler.ballsInCurrentOver} balls this over · {details.bowler.balls} balls bowled</small></> : <p className="player-unavailable">Bowler details unavailable</p>}</div>
@@ -70,10 +70,21 @@ function ComingSoonPage({ section }) {
   </section>;
 }
 
-function FixturesPage({ fixtures, onOpen }) {
+function FixturesPage({ fixtures, onOpen, loading, error }) {
   return <section className="section-page tab-panel">
-    <div className="section-page-heading"><span className="section-kicker">MATCH CENTRE</span><h1>Fixtures</h1><p>Upcoming matches currently available from the live feed.</p></div>
-    {fixtures.length ? <div className="fixture-grid">{fixtures.map(match => <MatchCard key={match.id} match={match} onOpen={onOpen} />)}</div> : <div className="section-placeholder compact"><div className="placeholder-mark">F</div><h2>No fixtures yet</h2><p>Fixture information will be available soon.</p></div>}
+    <div className="section-page-heading"><span className="section-kicker">MATCH CENTRE</span><h1>Fixtures</h1><p>Upcoming matches from the new cricket feed.</p></div>
+    {loading ? <DataLoading label="Loading fixtures" /> : fixtures.length ? <div className="fixture-grid">{fixtures.map((match, index) => <MatchCard key={`${match.id}-${index}`} match={match} onOpen={onOpen} />)}</div> : <div className="section-placeholder compact"><div className="placeholder-mark">F</div><h2>No fixtures yet</h2><p>{error || 'Fixture information will be available soon.'}</p></div>}
+  </section>;
+}
+
+function DataLoading({ label }) {
+  return <div className="data-loading" role="status"><span /><b>{label}</b></div>;
+}
+
+function SeriesPage({ items, loading, error }) {
+  return <section className="section-page tab-panel">
+    <div className="section-page-heading"><span className="section-kicker">TOURNAMENTS</span><h1>Series</h1><p>International, domestic and league series from the cricket feed.</p></div>
+    {loading ? <DataLoading label="Loading series" /> : items.length ? <div className="series-grid">{items.map((item, index) => <article className="series-card" key={item.id}><span className={`series-icon s${index % 4}`}>{item.name.slice(0, 3).toUpperCase()}</span><div><h2>{item.name}</h2><p>{item.dates}</p>{item.month && <small>{item.month}</small>}</div></article>)}</div> : <div className="section-placeholder compact"><div className="placeholder-mark">S</div><h2>No series yet</h2><p>{error || 'Series information will be available soon.'}</p></div>}
   </section>;
 }
 
@@ -97,9 +108,9 @@ function DetailPanel({ match, details, onClose }) {
     <p className="detail-note">{match.note}</p>
     <div className="tabs" role="tablist" aria-label="Match details">{tabs.map(tab => <button key={tab} role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>{tab}</button>)}</div>
     <div className="detail-tab-panel tab-panel" role="tabpanel" key={activeTab}>
-      {activeTab === 'Scorecard' && <div className="batting scorecard-status"><p>LIVE SCORECARD</p><div><span>{match.state === 'live' ? 'Automatically refreshing' : 'Latest available result'} <small>{match.state === 'live' ? 'team totals every 5 minutes; player figures every 10 minutes' : 'from Cricket Data'}</small></span><b>{match.state === 'live' ? 'LIVE' : 'FINAL'}</b></div>{details?.batters?.map(batter => <div key={batter.name}><span>{batter.name} <small>not out</small></span><b>{batter.runs} <small>({batter.balls})</small></b></div>)}{details?.bowler && <div><span>{details.bowler.name} <small>over {details.bowler.currentOver}, ball {details.bowler.ballsInCurrentOver}</small></span><b>{details.bowler.overs} <small>overs</small></b></div>}{!details && <small>Detailed player figures are not available for this match yet.</small>}</div>}
+      {activeTab === 'Scorecard' && <div className="batting scorecard-status"><p>LIVE SCORECARD</p><div><span>{match.state === 'live' ? 'Automatically refreshing' : 'Latest available result'} <small>{match.state === 'live' ? 'team totals every 5 minutes; player figures every 10 minutes' : 'from RapidAPI Cricket'}</small></span><b>{match.state === 'live' ? 'LIVE' : 'FINAL'}</b></div>{details?.batters?.map(batter => <div key={batter.name}><span>{batter.name} <small>not out</small></span><b>{batter.runs} <small>({batter.balls})</small></b></div>)}{details?.bowler && <div><span>{details.bowler.name} <small>over {details.bowler.currentOver}, ball {details.bowler.ballsInCurrentOver}</small></span><b>{details.bowler.overs} <small>overs</small></b></div>}{!details && <small>Detailed player figures are not available for this match yet.</small>}</div>}
       {activeTab === 'Commentary' && <div className="detail-empty-state"><b>Commentary is not available yet</b><p>Ball-by-ball commentary requires access to the provider’s detailed scorecard feed.</p></div>}
-      {activeTab === 'Info' && <div className="detail-info"><div><span>Venue / format</span><b>{match.competition}</b></div><div><span>Match status</span><b>{match.note}</b></div><div><span>Data source</span><b>Cricket Data</b></div></div>}
+      {activeTab === 'Info' && <div className="detail-info"><div><span>Venue / format</span><b>{match.competition}</b></div><div><span>Match status</span><b>{match.note}</b></div><div><span>Data source</span><b>RapidAPI Cricket API Free Data</b></div></div>}
     </div>
   </aside>;
 }
@@ -114,22 +125,24 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('crixace-theme') || 'bright');
   const [loading, setLoading] = useState(true);
   const [sport, setSport] = useState(() => localStorage.getItem('crixace-sport') || 'cricket');
-  const [scoreMatches, setScoreMatches] = useState(matches);
+  const [scoreMatches, setScoreMatches] = useState([]);
   const [footballMatches, setFootballMatches] = useState([]);
+  const [fixtureMatches, setFixtureMatches] = useState([]);
+  const [seriesItems, setSeriesItems] = useState([]);
+  const [fixturesState, setFixturesState] = useState({ loading: false, loaded: false, error: '' });
+  const [seriesState, setSeriesState] = useState({ loading: false, loaded: false, error: '' });
   const [featuredDetails, setFeaturedDetails] = useState(null);
   const [apiConnected, setApiConnected] = useState(false);
   const activeMatches = sport === 'football' ? footballMatches : scoreMatches;
   const visible = useMemo(() => filter === 'All' ? activeMatches : activeMatches.filter(match => match.state === filter.toLowerCase()), [filter, activeMatches]);
   const liveMatchCount = useMemo(() => activeMatches.reduce((count, match) => count + (match.state === 'live' ? 1 : 0), 0), [activeMatches]);
-  const featuredMatch = useMemo(() => activeMatches.find(match => match.state === 'live') || activeMatches[0] || matches[0], [activeMatches]);
-  const fixtureMatches = useMemo(() => activeMatches.filter(match => match.state === 'upcoming'), [activeMatches]);
+  const featuredMatch = useMemo(() => activeMatches.find(match => match.state === 'live') || activeMatches[0] || null, [activeMatches]);
   const featuredMatchId = featuredMatch?.id;
   const featuredMatchState = featuredMatch?.state;
   const hasLiveCricketMatches = scoreMatches.some(match => match.state === 'live');
   const refreshCricketMatches = useCallback(async () => {
     try {
       const remoteMatches = await fetchCricketMatches();
-      if (!remoteMatches.length) return;
       setScoreMatches(remoteMatches);
       setSelected(currentMatch => currentMatch ? remoteMatches.find(match => match.id === currentMatch.id) || currentMatch : currentMatch);
       setApiConnected(true);
@@ -141,6 +154,20 @@ function App() {
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('crixace-theme', theme); }, [theme]);
   useEffect(() => { const timer = setTimeout(() => setLoading(false), 800); return () => clearTimeout(timer); }, []);
   useEffect(() => { refreshCricketMatches(); }, [refreshCricketMatches]);
+  useEffect(() => {
+    if (activeSection !== 'Fixtures' || fixturesState.loaded || fixturesState.loading) return;
+    setFixturesState({ loading: true, loaded: false, error: '' });
+    fetchFixtures()
+      .then(items => { setFixtureMatches(items); setFixturesState({ loading: false, loaded: true, error: '' }); })
+      .catch(error => setFixturesState({ loading: false, loaded: true, error: error.message }));
+  }, [activeSection, fixturesState.loaded, fixturesState.loading]);
+  useEffect(() => {
+    if (activeSection !== 'Series' || seriesState.loaded || seriesState.loading) return;
+    setSeriesState({ loading: true, loaded: false, error: '' });
+    fetchSeries()
+      .then(items => { setSeriesItems(items); setSeriesState({ loading: false, loaded: true, error: '' }); })
+      .catch(error => setSeriesState({ loading: false, loaded: true, error: error.message }));
+  }, [activeSection, seriesState.loaded, seriesState.loading]);
   useEffect(() => {
     if (!hasLiveCricketMatches) return undefined;
     let refreshTimer;
@@ -205,17 +232,17 @@ function App() {
         <section className="hero-row"><div><span className="section-kicker"><i /> LIVE NOW</span><h1>Live cricket scores</h1><p>Follow every ball from the matches that matter.</p></div><button className="watch-button" onClick={() => setToast('Match alerts enabled')}><Bell size={17} /> Enable match alerts</button></section>
         <div className="filters" role="tablist" aria-label="Match status">{['All', 'Live', 'Upcoming', 'Completed'].map(item => <button role="tab" aria-selected={filter === item} key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}{item === 'Live' && <span>{liveMatchCount}</span>}</button>)}</div>
         <div className="content-grid">
-          <section className="scores"><FeatureMatch match={featuredMatch} details={featuredDetails} onOpen={openMatch} onSave={() => setToast('Match saved to favourites')} /><div className="section-title"><h2>Matches</h2><button onClick={() => setFilter('All')}>View all <ChevronRight size={15} /></button></div><div className="match-list tab-panel" role="tabpanel" key={`${sport}-${filter}`}>{visible.map(match => <MatchCard key={match.id} match={match} onOpen={openMatch} />)}</div></section>
-          <aside className="sidebar"><section className="series-list"><div className="sidebar-heading"><h2>Trending series</h2><button onClick={() => openSection('Series')} aria-label="View all series"><ChevronRight size={18} /></button></div>{series.map((item, index) => <button key={item} onClick={() => openSection('Series')}><span className={'series-icon s' + index}>{index === 0 ? 'IND' : index === 1 ? '100' : index === 2 ? 'AC' : 'CPL'}</span><span><b>{item}</b><small>{[5, 14, 12, 23][index]} matches</small></span><ChevronRight size={16} /></button>)}</section><section className="fantasy"><span>CRIXACE PLAY</span><h3>Build your dream XI.</h3><p>Pick your squad and follow every point live.</p><button onClick={() => setToast('Fantasy lobby coming soon')}>Play fantasy <ChevronRight size={15} /></button><div className="fantasy-ball">6</div></section></aside>
+          <section className="scores">{featuredMatch ? <FeatureMatch match={featuredMatch} details={featuredDetails} onOpen={openMatch} onSave={() => setToast('Match saved to favourites')} /> : <div className="feed-empty"><span className="section-kicker">LIVE FEED</span><h2>No live matches right now</h2><p>The feed is connected. New matches will appear automatically when play begins.</p></div>}<div className="section-title"><h2>Matches</h2><button onClick={() => setFilter('All')}>View all <ChevronRight size={15} /></button></div><div className="match-list tab-panel" role="tabpanel" key={`${sport}-${filter}`}>{visible.length ? visible.map((match, index) => <MatchCard key={`${match.id}-${index}`} match={match} onOpen={openMatch} />) : <p className="list-empty">{filter === 'All' ? 'No matches are available.' : `No ${filter.toLowerCase()} matches are available.`}</p>}</div></section>
+          <aside className="sidebar"><section className="series-list"><div className="sidebar-heading"><h2>Trending series</h2><button onClick={() => openSection('Series')} aria-label="View all series"><ChevronRight size={18} /></button></div>{(seriesItems.length ? seriesItems.slice(0, 4).map(item => item.name) : fallbackSeries).map((item, index) => <button key={item} onClick={() => openSection('Series')}><span className={'series-icon s' + index}>{item.slice(0, 3).toUpperCase()}</span><span><b>{item}</b><small>View series</small></span><ChevronRight size={16} /></button>)}</section><section className="fantasy"><span>CRIXACE PLAY</span><h3>Build your dream XI.</h3><p>Pick your squad and follow every point live.</p><button onClick={() => setToast('Fantasy lobby coming soon')}>Play fantasy <ChevronRight size={15} /></button><div className="fantasy-ball">6</div></section></aside>
         </div>
       </div>}
-      {activeSection === 'Fixtures' && <FixturesPage fixtures={fixtureMatches} onOpen={openMatch} />}
-      {activeSection === 'Series' && <ComingSoonPage section="Series" />}
+      {activeSection === 'Fixtures' && <FixturesPage fixtures={fixtureMatches} onOpen={openMatch} loading={fixturesState.loading} error={fixturesState.error} />}
+      {activeSection === 'Series' && <SeriesPage items={seriesItems} loading={seriesState.loading} error={seriesState.error} />}
       {activeSection === 'News' && <ComingSoonPage section="News" />}
     </main>
     {selected && <div className="drawer-backdrop" onClick={() => setSelected(null)}><div onClick={event => event.stopPropagation()}><DetailPanel match={selected} details={selectedDetails} onClose={() => setSelected(null)} /></div></div>}
     {loading && <LoadingOverlay />}{toast && <div className="toast">{toast}</div>}
-    <footer><span>© 2026 CrixAce</span><span>{apiConnected ? 'Scores powered by Cricket Data.' : 'Live scores are illustrative.'}</span></footer>
+    <footer><span>© 2026 CrixAce</span><span>{apiConnected ? 'Live data powered by RapidAPI Cricket.' : 'Live cricket data is temporarily unavailable.'}</span></footer>
   </div>;
 }
 

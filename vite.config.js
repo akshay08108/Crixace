@@ -3,34 +3,30 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const rapidHost = env.RAPIDAPI_HOST || 'cricket-api-free-data.p.rapidapi.com';
+  const rapidProxy = (route, transformQuery = path => path) => ({
+    target: `https://${rapidHost}`,
+    changeOrigin: true,
+    secure: true,
+    rewrite: path => transformQuery(path.replace(/^\/api\/[^?]+/, route)),
+    configure: proxy => proxy.on('proxyReq', proxyRequest => {
+      if (!env.RAPIDAPI_KEY) return;
+      proxyRequest.setHeader('x-rapidapi-key', env.RAPIDAPI_KEY);
+      proxyRequest.setHeader('x-rapidapi-host', rapidHost);
+      proxyRequest.setHeader('accept', 'application/json');
+    })
+  });
   return {
     plugins: [react()],
     server: {
       proxy: {
-        '/api/scorecard': {
-          target: env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1',
-          changeOrigin: true,
-          secure: true,
-          rewrite: path => path.replace(/^\/api\/scorecard/, '/match_scorecard'),
-          configure: proxy => proxy.on('proxyReq', proxyRequest => {
-            if (!env.CRICKETDATA_API_KEY) return;
-            const targetUrl = new URL(proxyRequest.path, env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1');
-            targetUrl.searchParams.set('apikey', env.CRICKETDATA_API_KEY);
-            proxyRequest.path = `${targetUrl.pathname}${targetUrl.search}`;
-          })
-        },
-        '/api/cricket': {
-          target: env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1',
-          changeOrigin: true,
-          secure: true,
-          rewrite: path => path.replace(/^\/api\/cricket/, '/currentMatches'),
-          configure: proxy => proxy.on('proxyReq', proxyRequest => {
-            if (!env.CRICKETDATA_API_KEY) return;
-            const targetUrl = new URL(proxyRequest.path, env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1');
-            targetUrl.searchParams.set('apikey', env.CRICKETDATA_API_KEY);
-            proxyRequest.path = `${targetUrl.pathname}${targetUrl.search}`;
-          })
-        },
+        '/api/scorecard': rapidProxy('/cricket-match-scoreboard', path => path.replace(/([?&])id=/, '$1matchid=')),
+        '/api/fixtures': rapidProxy('/cricket-schedule'),
+        '/api/series': rapidProxy('/cricket-series'),
+        '/api/teams': rapidProxy('/cricket-teams'),
+        '/api/players': rapidProxy('/cricket-players'),
+        '/api/team-logo': rapidProxy('/cricket-teamlogo'),
+        '/api/cricket': rapidProxy('/cricket-livescores'),
         '/api/football': {
           target: 'https://soccerapi.entitysport.com',
           changeOrigin: true,
