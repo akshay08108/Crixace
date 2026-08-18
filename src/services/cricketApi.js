@@ -34,13 +34,20 @@ function normalizeScore(score) {
   };
 }
 
+function teamImage(team) {
+  const suppliedImage = firstDefined(team?.image, team?.logo, team?.imageUrl);
+  if (suppliedImage) return suppliedImage;
+  const imageId = firstDefined(team?.imageId, team?.teamImageId);
+  return imageId ? `https://static.cricbuzz.com/a/img/v1/72x54/i1/c${imageId}/team.jpg` : '';
+}
+
 function normalizeTeam(team, score) {
   const normalizedScore = normalizeScore(score);
   return {
     id: String(firstDefined(team?.teamId, team?.id, `team-${shortCode(team)}`)),
     code: shortCode(team),
     name: String(firstDefined(team?.teamName, team?.name, team?.title, 'Team')),
-    image: firstDefined(team?.image, team?.logo, team?.imageUrl) || '',
+    image: teamImage(team),
     ...normalizedScore
   };
 }
