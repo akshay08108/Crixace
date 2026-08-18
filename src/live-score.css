@@ -94,6 +94,105 @@
   line-height: 1.45;
 }
 
+.live-players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 0 21px 14px;
+  padding: 13px 0;
+  border-top: 1px solid #ffffff1d;
+  color: #fff;
+}
+
+.live-players > div {
+  min-width: 0;
+}
+
+.live-players > div > span {
+  color: #93a69c;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.live-players p {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 7px 0 0;
+  font-size: 11px;
+}
+
+.live-players p b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-players p strong {
+  color: var(--lime);
+  white-space: nowrap;
+}
+
+.live-players small {
+  color: #9fb2a8;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.live-players .player-unavailable {
+  color: #9fb2a8;
+}
+
+.section-page-heading h1,
+.section-placeholder h1 {
+  font: 800 34px 'Manrope';
+  letter-spacing: -1.4px;
+  margin: 10px 0 5px;
+}
+
+.section-page-heading p,
+.section-placeholder p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.fixture-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 28px;
+}
+
+.section-placeholder {
+  min-height: 58vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+
+.section-placeholder.compact {
+  min-height: 45vh;
+}
+
+.placeholder-mark {
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 7px;
+  border-radius: 20px;
+  background: var(--soft-green);
+  color: var(--green);
+  font: 800 28px 'Manrope';
+}
+
+.section-placeholder small {
+  color: var(--muted);
+  margin-top: 9px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tab-panel {
     animation: none;
@@ -118,6 +217,10 @@
 
   .header-actions {
     gap: 6px;
+  }
+
+  .header-inner nav {
+    background: var(--white);
   }
 
   .header-actions .theme-toggle,
@@ -161,7 +264,7 @@
   }
 
   .feature-top {
-    padding: 16px 16px 0;
+    padding: 10px 12px 0;
   }
 
   .competition {
@@ -173,11 +276,18 @@
 
   .feature-teams {
     grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
-    padding: 24px 10px;
+    padding: 10px 10px 9px;
   }
 
   .feature-team {
+    gap: 2px;
     min-width: 0;
+  }
+
+  .feature-team .team-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
   }
 
   .feature-team span {
@@ -188,22 +298,48 @@
   }
 
   .feature-team strong {
-    font-size: clamp(24px, 8vw, 29px);
+    font-size: clamp(21px, 7vw, 25px);
+  }
+
+  .feature-team small {
+    font-size: 9px;
+  }
+
+  .live-players {
+    gap: 14px;
+    margin: 0 12px 6px;
+    padding: 7px 0;
+  }
+
+  .live-players p {
+    margin-top: 4px;
+    font-size: 10px;
   }
 
   .match-status {
     align-items: flex-start;
     flex-direction: column;
-    gap: 8px;
-    margin-inline: 16px;
+    gap: 3px;
+    margin-inline: 12px;
+    padding-block: 6px;
+    font-size: 10px;
   }
 
   .ball-strip {
-    padding-inline: 16px;
+    padding: 7px 12px;
   }
 
   .match-card {
     padding: 13px 14px;
+  }
+
+  .fixture-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-page-heading h1,
+  .section-placeholder h1 {
+    font-size: 28px;
   }
 
   .team-row {
