@@ -7,6 +7,18 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
+        '/api/scorecard': {
+          target: env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1',
+          changeOrigin: true,
+          secure: true,
+          rewrite: path => path.replace(/^\/api\/scorecard/, '/match_scorecard'),
+          configure: proxy => proxy.on('proxyReq', proxyRequest => {
+            if (!env.CRICKETDATA_API_KEY) return;
+            const targetUrl = new URL(proxyRequest.path, env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1');
+            targetUrl.searchParams.set('apikey', env.CRICKETDATA_API_KEY);
+            proxyRequest.path = `${targetUrl.pathname}${targetUrl.search}`;
+          })
+        },
         '/api/cricket': {
           target: env.CRICKETDATA_BASE_URL || 'https://api.cricapi.com/v1',
           changeOrigin: true,

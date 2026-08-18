@@ -10,6 +10,9 @@ CrixAce is a responsive cricket and football live-score interface built with Rea
 - Live, upcoming, and completed match filters
 - Interactive scorecard drawer and match alerts
 - Five-minute live-score refresh while a match is active and the tab is visible
+- Smooth, accessible transitions between match filters and scorecard tabs
+- Functional Fixtures, Series and News sections with graceful coming-soon states
+- Live batter runs/balls and current-bowler over details when the scorecard feed supplies them
 - Responsive desktop and mobile layouts with phone-safe navigation, cards and scorecard drawer
 - Graceful fallback to demo scores when an API is not configured
 
@@ -70,6 +73,7 @@ For Cricket Data, configure `CRICKETDATA_API_KEY` and `CRICKETDATA_BASE_URL` usi
 ```text
 .github/workflows/ci.yml  GitHub production-build check
 api/cricket.js            Server-side Cricket Data proxy for Vercel
+api/scorecard.js           Server-side detailed scorecard proxy for Vercel
 src/main.jsx              Application UI and prototype data
 src/services/             Live-score provider adapters
 src/styles.css            Responsive visual design
