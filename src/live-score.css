@@ -109,7 +109,7 @@
 }
 
 .live-players > div > span {
-  color: #93a69c;
+  color: #98a7bb;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -135,13 +135,13 @@
 }
 
 .live-players small {
-  color: #9fb2a8;
+  color: #a8b5c7;
   font-size: 9px;
   line-height: 1.4;
 }
 
 .live-players .player-unavailable {
-  color: #9fb2a8;
+  color: #a8b5c7;
 }
 
 .section-page-heading h1,
