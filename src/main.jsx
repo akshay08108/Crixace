@@ -133,7 +133,10 @@ function App() {
   const [seriesState, setSeriesState] = useState({ loading: false, loaded: false, error: '' });
   const [featuredDetails, setFeaturedDetails] = useState(null);
   const [apiConnected, setApiConnected] = useState(false);
-  const activeMatches = sport === 'football' ? footballMatches : scoreMatches;
+  const activeMatches = useMemo(
+    () => sport === 'football' ? footballMatches : [...scoreMatches, ...fixtureMatches],
+    [sport, footballMatches, scoreMatches, fixtureMatches]
+  );
   const visible = useMemo(() => filter === 'All' ? activeMatches : activeMatches.filter(match => match.state === filter.toLowerCase()), [filter, activeMatches]);
   const liveMatchCount = useMemo(() => activeMatches.reduce((count, match) => count + (match.state === 'live' ? 1 : 0), 0), [activeMatches]);
   const featuredMatch = useMemo(() => activeMatches.find(match => match.state === 'live') || activeMatches[0] || null, [activeMatches]);
@@ -155,12 +158,15 @@ function App() {
   useEffect(() => { const timer = setTimeout(() => setLoading(false), 800); return () => clearTimeout(timer); }, []);
   useEffect(() => { refreshCricketMatches(); }, [refreshCricketMatches]);
   useEffect(() => {
-    if (activeSection !== 'Fixtures' || fixturesState.loaded || fixturesState.loading) return;
+    const needsFixtures = sport === 'cricket' && (
+      activeSection === 'Fixtures' || (activeSection === 'Live scores' && filter === 'Upcoming')
+    );
+    if (!needsFixtures || fixturesState.loaded || fixturesState.loading) return;
     setFixturesState({ loading: true, loaded: false, error: '' });
     fetchFixtures()
       .then(items => { setFixtureMatches(items); setFixturesState({ loading: false, loaded: true, error: '' }); })
       .catch(error => setFixturesState({ loading: false, loaded: true, error: error.message }));
-  }, [activeSection, fixturesState.loaded, fixturesState.loading]);
+  }, [activeSection, filter, fixturesState.loaded, fixturesState.loading, sport]);
   useEffect(() => {
     if (activeSection !== 'Series' || seriesState.loaded || seriesState.loading) return;
     setSeriesState({ loading: true, loaded: false, error: '' });
@@ -232,7 +238,7 @@ function App() {
         <section className="hero-row"><div><span className="section-kicker"><i /> LIVE NOW</span><h1>Live cricket scores</h1><p>Follow every ball from the matches that matter.</p></div><button className="watch-button" onClick={() => setToast('Match alerts enabled')}><Bell size={17} /> Enable match alerts</button></section>
         <div className="filters" role="tablist" aria-label="Match status">{['All', 'Live', 'Upcoming', 'Completed'].map(item => <button role="tab" aria-selected={filter === item} key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}{item === 'Live' && <span>{liveMatchCount}</span>}</button>)}</div>
         <div className="content-grid">
-          <section className="scores">{featuredMatch ? <FeatureMatch match={featuredMatch} details={featuredDetails} onOpen={openMatch} onSave={() => setToast('Match saved to favourites')} /> : <div className="feed-empty"><span className="section-kicker">LIVE FEED</span><h2>The provider reports no live matches</h2><p>The connection is working, but this feed can occasionally omit matches covered by other score services. New matches will appear automatically when the provider publishes them.</p></div>}<div className="section-title"><h2>Matches</h2><button onClick={() => setFilter('All')}>View all <ChevronRight size={15} /></button></div><div className="match-list tab-panel" role="tabpanel" key={`${sport}-${filter}`}>{visible.length ? visible.map((match, index) => <MatchCard key={`${match.id}-${index}`} match={match} onOpen={openMatch} />) : <p className="list-empty">{filter === 'All' ? 'The provider returned no matches.' : `The provider returned no ${filter.toLowerCase()} matches.`}</p>}</div></section>
+          <section className="scores">{featuredMatch ? <FeatureMatch match={featuredMatch} details={featuredDetails} onOpen={openMatch} onSave={() => setToast('Match saved to favourites')} /> : <div className="feed-empty"><span className="section-kicker">LIVE FEED</span><h2>The provider reports no live matches</h2><p>The connection is working, but this feed can occasionally omit matches covered by other score services. New matches will appear automatically when the provider publishes them.</p></div>}<div className="section-title"><h2>Matches</h2><button onClick={() => setFilter('All')}>View all <ChevronRight size={15} /></button></div><div className="match-list tab-panel" role="tabpanel" key={`${sport}-${filter}`}>{sport === 'cricket' && filter === 'Upcoming' && fixturesState.loading ? <DataLoading label="Loading upcoming matches" /> : visible.length ? visible.map((match, index) => <MatchCard key={`${match.id}-${index}`} match={match} onOpen={openMatch} />) : <p className="list-empty">{filter === 'All' ? 'The provider returned no matches.' : `The provider returned no ${filter.toLowerCase()} matches.`}</p>}</div></section>
           <aside className="sidebar"><section className="series-list"><div className="sidebar-heading"><h2>Trending series</h2><button onClick={() => openSection('Series')} aria-label="View all series"><ChevronRight size={18} /></button></div>{(seriesItems.length ? seriesItems.slice(0, 4).map(item => item.name) : fallbackSeries).map((item, index) => <button key={item} onClick={() => openSection('Series')}><span className={'series-icon s' + index}>{item.slice(0, 3).toUpperCase()}</span><span><b>{item}</b><small>View series</small></span><ChevronRight size={16} /></button>)}</section><section className="fantasy"><span>CRIXACE PLAY</span><h3>Build your dream XI.</h3><p>Pick your squad and follow every point live.</p><button onClick={() => setToast('Fantasy lobby coming soon')}>Play fantasy <ChevronRight size={15} /></button><div className="fantasy-ball">6</div></section></aside>
         </div>
       </div>}
