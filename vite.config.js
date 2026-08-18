@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     until.setUTCDate(until.getUTCDate() + 180);
     return {
       'filter[starts_between]': `${dateOnly(from)},${dateOnly(until)}`,
-      include: 'localteam,visitorteam,runs,venue,league',
+      include: 'localteam,visitorteam,balls,runs,bowling.bowler,batting.batsman,scoreboards,tosswon,venue,league',
       sort: 'starting_at',
       per_page: '100'
     };
