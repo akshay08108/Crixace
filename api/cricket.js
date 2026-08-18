@@ -5,7 +5,7 @@ export default async function handler(request, response) {
 
   try {
     const payload = await fetchSportmonks('/livescores', {
-      include: 'localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,league'
+      include: 'localteam,visitorteam,balls,runs,bowling.bowler,batting.batsman,scoreboards,venue,league'
     });
     response.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return response.status(200).json(payload);
