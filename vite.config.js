@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
         '/api/teams': sportmonksProxy(() => ({ route: '/teams', params: { per_page: '100' } })),
         '/api/players': sportmonksProxy(url => ({ route: '/players', params: { 'filter[team_id]': url.searchParams.get('teamid') || url.searchParams.get('team_id') || '', per_page: '100' } })),
         '/api/team-logo': sportmonksProxy(url => ({ route: `/teams/${encodeURIComponent(url.searchParams.get('teamid') || url.searchParams.get('team_id') || '')}` })),
-        '/api/cricket': sportmonksProxy(() => ({ route: '/livescores', params: { include: 'localteam,visitorteam,runs,batting.batsman,bowling.bowler,venue,league' } })),
+        '/api/cricket': sportmonksProxy(() => ({ route: '/livescores', params: { include: 'localteam,visitorteam,balls,runs,bowling.bowler,batting.batsman,scoreboards,venue,league' } })),
         '/api/football': {
           target: 'https://soccerapi.entitysport.com',
           changeOrigin: true,
